@@ -11,6 +11,66 @@
                 <div class="flex gap-2">
                     <button
                         @click="
+                            activeTab = 'courses';
+                            fetchAdminCourses();
+                        "
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
+                        :class="
+                            activeTab === 'courses'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        "
+                    >
+                        🎓 الكورسات
+                        <span
+                            class="bg-white/30 text-xs px-2 py-0.5 rounded-full"
+                            v-if="activeTab === 'courses'"
+                        >
+                            {{ adminCourses.length }}
+                        </span>
+                    </button>
+                    <button
+                        @click="
+                            activeTab = 'testimonials';
+                            fetchTestimonials();
+                        "
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
+                        :class="
+                            activeTab === 'testimonials'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        "
+                    >
+                        💬 آراء الطلاب
+                        <span
+                            class="bg-white/30 text-xs px-2 py-0.5 rounded-full"
+                            v-if="activeTab === 'testimonials'"
+                        >
+                            {{ testimonials.length }}
+                        </span>
+                    </button>
+                    <button
+                        @click="
+                            activeTab = 'messages';
+                            fetchMessages();
+                        "
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all relative"
+                        :class="
+                            activeTab === 'messages'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        "
+                    >
+                        ✉️ الرسائل
+                        <span
+                            v-if="unreadMessagesCount > 0"
+                            class="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center absolute -top-1 -right-1"
+                        >
+                            {{ unreadMessagesCount }}
+                        </span>
+                    </button>
+                    <button
+                        @click="
                             activeTab = 'bookings';
                             fetchBookings();
                         "
@@ -94,6 +154,432 @@
         </div>
 
         <div class="max-w-6xl mx-auto p-6">
+            <!-- TAB: الرسائل -->
+            <div v-if="activeTab === 'messages'">
+                <p class="text-gray-500 text-sm mb-6">
+                    إجمالي: {{ messages.length }} رسالة
+                </p>
+
+                <div v-if="messagesLoading" class="space-y-4">
+                    <div
+                        v-for="i in 3"
+                        :key="i"
+                        class="animate-pulse bg-white rounded-2xl h-28"
+                    ></div>
+                </div>
+
+                <div v-else class="space-y-4">
+                    <div
+                        v-for="m in messages"
+                        :key="m.id"
+                        class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+                        :class="
+                            !m.is_read ? 'border-r-4 border-r-blue-500' : ''
+                        "
+                    >
+                        <div
+                            class="flex items-start justify-between gap-4 mb-2"
+                        >
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-gray-900">{{
+                                        m.name
+                                    }}</span>
+                                    <span
+                                        v-if="!m.is_read"
+                                        class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-600"
+                                        >جديدة</span
+                                    >
+                                </div>
+                                <div
+                                    class="flex flex-wrap gap-x-4 text-xs text-gray-400 mt-1"
+                                >
+                                    <span v-if="m.email">✉️ {{ m.email }}</span>
+                                    <span v-if="m.phone">📱 {{ m.phone }}</span>
+                                    <span>{{ timeAgo(m.created_at) }}</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <button
+                                    v-if="!m.is_read"
+                                    @click="markMessageRead(m)"
+                                    class="bg-green-50 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-100"
+                                >
+                                    ✓ تحديد كمقروء
+                                </button>
+                                <button
+                                    @click="deleteMessage(m.id)"
+                                    class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100"
+                                >
+                                    🗑 حذف
+                                </button>
+                            </div>
+                        </div>
+                        <p
+                            class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3"
+                        >
+                            {{ m.message }}
+                        </p>
+                    </div>
+
+                    <div v-if="!messages.length" class="text-center py-20">
+                        <div class="text-5xl mb-4">📭</div>
+                        <p class="text-gray-500">لا يوجد رسائل حاليًا</p>
+                    </div>
+                </div>
+            </div>
+            <!-- TAB: آراء الطلاب -->
+            <div v-if="activeTab === 'testimonials'">
+                <div class="flex items-center justify-between mb-6">
+                    <p class="text-gray-500 text-sm">
+                        إجمالي: {{ testimonials.length }} رأي
+                    </p>
+                    <button
+                        @click="showTestimonialForm = true"
+                        class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                    >
+                        + إضافة رأي
+                    </button>
+                </div>
+
+                <div
+                    v-if="showTestimonialForm"
+                    class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8"
+                >
+                    <h2 class="font-bold text-lg mb-4">رأي جديد</h2>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >اسم الطالب</label
+                            >
+                            <input
+                                v-model="testimonialForm.name"
+                                type="text"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >المستوى (اختياري)</label
+                            >
+                            <input
+                                v-model="testimonialForm.level"
+                                type="text"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                                placeholder="A1.2"
+                            />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >نص الرأي</label
+                            >
+                            <textarea
+                                v-model="testimonialForm.content"
+                                rows="3"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >التقييم (1-5)</label
+                            >
+                            <select
+                                v-model.number="testimonialForm.rating"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            >
+                                <option v-for="n in 5" :key="n" :value="n">
+                                    {{ n }} ⭐
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <p
+                        v-if="testimonialFormError"
+                        class="text-red-500 text-sm mt-3"
+                    >
+                        {{ testimonialFormError }}
+                    </p>
+
+                    <div class="flex gap-3 justify-end mt-4">
+                        <button
+                            @click="showTestimonialForm = false"
+                            class="px-5 py-2.5 rounded-xl font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        >
+                            إلغاء
+                        </button>
+                        <button
+                            @click="saveTestimonial"
+                            :disabled="testimonialSaving"
+                            class="px-5 py-2.5 rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {{ testimonialSaving ? "جاري الحفظ..." : "حفظ" }}
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="testimonialsLoading" class="space-y-4">
+                    <div
+                        v-for="i in 3"
+                        :key="i"
+                        class="animate-pulse bg-white rounded-2xl h-24"
+                    ></div>
+                </div>
+
+                <div v-else class="space-y-4">
+                    <div
+                        v-for="t in testimonials"
+                        :key="t.id"
+                        class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start justify-between gap-4"
+                    >
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-gray-900">{{
+                                    t.name
+                                }}</span>
+                                <span
+                                    v-if="t.level"
+                                    class="px-2 py-0.5 rounded-full text-xs font-bold"
+                                    :class="groupBadgeClass(t.level)"
+                                    >{{ t.level }}</span
+                                >
+                                <span class="text-yellow-500 text-sm">{{
+                                    "⭐".repeat(t.rating)
+                                }}</span>
+                            </div>
+                            <p class="text-sm text-gray-600">{{ t.content }}</p>
+                        </div>
+                        <button
+                            @click="deleteTestimonial(t.id)"
+                            class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition-all shrink-0"
+                        >
+                            🗑 حذف
+                        </button>
+                    </div>
+
+                    <div v-if="!testimonials.length" class="text-center py-20">
+                        <div class="text-5xl mb-4">📭</div>
+                        <p class="text-gray-500">لا يوجد آراء حاليًا</p>
+                    </div>
+                </div>
+            </div>
+            <!-- TAB: الكورسات -->
+            <div v-if="activeTab === 'courses'">
+                <div class="flex items-center justify-between mb-6">
+                    <p class="text-gray-500 text-sm">
+                        إجمالي: {{ adminCourses.length }} كورس
+                    </p>
+                    <button
+                        @click="openCourseForm()"
+                        class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                    >
+                        + إضافة كورس
+                    </button>
+                </div>
+
+                <!-- فورم الإضافة/التعديل -->
+                <div
+                    v-if="showCourseForm"
+                    class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8"
+                >
+                    <h2 class="font-bold text-lg mb-4">
+                        {{ editingCourseId ? "تعديل الكورس" : "كورس جديد" }}
+                    </h2>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >اسم الكورس</label
+                            >
+                            <input
+                                v-model="courseForm.name"
+                                type="text"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                                placeholder="مثال: A1.1"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >المستوى</label
+                            >
+                            <select
+                                v-model="courseForm.level"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            >
+                                <option value="A1">A1</option>
+                                <option value="A2">A2</option>
+                                <option value="B1">B1</option>
+                                <option value="B2">B2</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >الوصف</label
+                            >
+                            <textarea
+                                v-model="courseForm.description"
+                                rows="3"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >مدة الكورس (أسابيع)</label
+                            >
+                            <input
+                                v-model.number="courseForm.duration_weeks"
+                                type="number"
+                                min="1"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >عدد الحصص أسبوعيًا</label
+                            >
+                            <input
+                                v-model.number="courseForm.sessions_per_week"
+                                type="number"
+                                min="1"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >مدة الحصة (دقيقة)</label
+                            >
+                            <input
+                                v-model.number="
+                                    courseForm.session_duration_minutes
+                                "
+                                type="number"
+                                min="1"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-semibold text-gray-600 mb-1"
+                                >السعر (ج.م)</label
+                            >
+                            <input
+                                v-model.number="courseForm.price"
+                                type="number"
+                                min="0"
+                                class="w-full border border-gray-200 rounded-xl p-3"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 mt-4">
+                        <input
+                            id="course_is_active"
+                            v-model="courseForm.is_active"
+                            type="checkbox"
+                            class="w-4 h-4"
+                        />
+                        <label
+                            for="course_is_active"
+                            class="text-sm text-gray-600"
+                            >مفعّل (يظهر للطلاب)</label
+                        >
+                    </div>
+
+                    <p v-if="courseFormError" class="text-red-500 text-sm mt-3">
+                        {{ courseFormError }}
+                    </p>
+
+                    <div class="flex gap-3 justify-end mt-4">
+                        <button
+                            @click="showCourseForm = false"
+                            class="px-5 py-2.5 rounded-xl font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        >
+                            إلغاء
+                        </button>
+                        <button
+                            @click="saveCourse"
+                            :disabled="courseSaving"
+                            class="px-5 py-2.5 rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {{ courseSaving ? "جاري الحفظ..." : "حفظ" }}
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="coursesLoading" class="space-y-4">
+                    <div
+                        v-for="i in 3"
+                        :key="i"
+                        class="animate-pulse bg-white rounded-2xl h-24"
+                    ></div>
+                </div>
+
+                <div v-else class="space-y-4">
+                    <div
+                        v-for="c in adminCourses"
+                        :key="c.id"
+                        class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between flex-wrap gap-4"
+                    >
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-gray-900">{{
+                                    c.name
+                                }}</span>
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-xs font-bold"
+                                    :class="groupBadgeClass(c.level)"
+                                    >{{ c.level }}</span
+                                >
+                                <span
+                                    v-if="!c.is_active"
+                                    class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500"
+                                    >غير مفعّل</span
+                                >
+                            </div>
+                            <p class="text-sm text-gray-500">
+                                {{ c.description }}
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1">
+                                {{ c.duration_weeks }} أسبوع •
+                                {{ c.sessions_per_week }} حصة/أسبوع •
+                                {{ c.price }} ج.م
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button
+                                @click="openCourseForm(c)"
+                                class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
+                            >
+                                ✏️ تعديل
+                            </button>
+                            <button
+                                @click="deleteCourse(c)"
+                                class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition-all"
+                            >
+                                🗑 حذف
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="!adminCourses.length" class="text-center py-20">
+                        <div class="text-5xl mb-4">📭</div>
+                        <p class="text-gray-500">
+                            لا يوجد كورسات حاليًا، ابدأ بإضافة كورس جديد
+                        </p>
+                    </div>
+                </div>
+            </div>
             <!-- TAB: الحجوزات -->
             <div v-if="activeTab === 'bookings'">
                 <div class="flex items-center justify-between mb-6">
@@ -1705,10 +2191,195 @@ function formatDate(date) {
 }
 
 // ══════════════════════════════════════════════
+// COURSES (Admin CRUD)
+// ══════════════════════════════════════════════
+const adminCourses = ref([]);
+const coursesLoading = ref(false);
+const showCourseForm = ref(false);
+const editingCourseId = ref(null);
+const courseSaving = ref(false);
+const courseFormError = ref("");
+
+const emptyCourseForm = () => ({
+    name: "",
+    level: "A1",
+    description: "",
+    duration_weeks: 8,
+    sessions_per_week: 2,
+    session_duration_minutes: 60,
+    price: 0,
+    is_active: true,
+});
+
+const courseForm = ref(emptyCourseForm());
+
+async function fetchAdminCourses() {
+    coursesLoading.value = true;
+    try {
+        const { data } = await axios.get("/api/v1/admin/courses");
+        adminCourses.value = data.data;
+    } catch (err) {
+        console.error("خطأ في جلب الكورسات", err);
+    } finally {
+        coursesLoading.value = false;
+    }
+}
+
+function openCourseForm(course = null) {
+    editingCourseId.value = course?.id || null;
+    courseForm.value = course
+        ? {
+              name: course.name,
+              level: course.level,
+              description: course.description || "",
+              duration_weeks: course.duration_weeks,
+              sessions_per_week: course.sessions_per_week,
+              session_duration_minutes: course.session_duration_minutes,
+              price: course.price,
+              is_active: !!course.is_active,
+          }
+        : emptyCourseForm();
+    courseFormError.value = "";
+    showCourseForm.value = true;
+}
+
+async function saveCourse() {
+    courseSaving.value = true;
+    courseFormError.value = "";
+    try {
+        if (editingCourseId.value) {
+            await axios.put(
+                `/api/v1/admin/courses/${editingCourseId.value}`,
+                courseForm.value
+            );
+        } else {
+            await axios.post("/api/v1/admin/courses", courseForm.value);
+        }
+        showCourseForm.value = false;
+        await fetchAdminCourses();
+    } catch (err) {
+        courseFormError.value =
+            err?.response?.data?.message || "حصل خطأ، تأكد من البيانات";
+    } finally {
+        courseSaving.value = false;
+    }
+}
+
+async function deleteCourse(course) {
+    if (!confirm(`حذف كورس "${course.name}"؟`)) return;
+    try {
+        await axios.delete(`/api/v1/admin/courses/${course.id}`);
+        adminCourses.value = adminCourses.value.filter(
+            (c) => c.id !== course.id
+        );
+    } catch (err) {
+        alert(err?.response?.data?.message || "حصل خطأ في الحذف");
+    }
+}
+
+// ══════════════════════════════════════════════
+// TESTIMONIALS
+// ══════════════════════════════════════════════
+const testimonials = ref([]);
+const testimonialsLoading = ref(false);
+const showTestimonialForm = ref(false);
+const testimonialSaving = ref(false);
+const testimonialFormError = ref("");
+
+const emptyTestimonialForm = () => ({
+    name: "",
+    level: "",
+    content: "",
+    rating: 5,
+});
+
+const testimonialForm = ref(emptyTestimonialForm());
+
+async function fetchTestimonials() {
+    testimonialsLoading.value = true;
+    try {
+        const { data } = await axios.get("/api/v1/admin/testimonials");
+        testimonials.value = data.data;
+    } catch (err) {
+        console.error("خطأ في جلب الآراء", err);
+    } finally {
+        testimonialsLoading.value = false;
+    }
+}
+
+async function saveTestimonial() {
+    testimonialSaving.value = true;
+    testimonialFormError.value = "";
+    try {
+        await axios.post("/api/v1/admin/testimonials", testimonialForm.value);
+        showTestimonialForm.value = false;
+        testimonialForm.value = emptyTestimonialForm();
+        await fetchTestimonials();
+    } catch (err) {
+        testimonialFormError.value =
+            err?.response?.data?.message || "حصل خطأ، تأكد من البيانات";
+    } finally {
+        testimonialSaving.value = false;
+    }
+}
+
+async function deleteTestimonial(id) {
+    if (!confirm("حذف رأي الطالب ده؟")) return;
+    try {
+        await axios.delete(`/api/v1/admin/testimonials/${id}`);
+        testimonials.value = testimonials.value.filter((t) => t.id !== id);
+    } catch {
+        alert("حصل خطأ في الحذف");
+    }
+}
+
+// ══════════════════════════════════════════════
+// MESSAGES
+// ══════════════════════════════════════════════
+const messages = ref([]);
+const messagesLoading = ref(false);
+
+const unreadMessagesCount = computed(
+    () => messages.value.filter((m) => !m.is_read).length
+);
+
+async function fetchMessages() {
+    messagesLoading.value = true;
+    try {
+        const { data } = await axios.get("/api/v1/admin/messages");
+        messages.value = data.data;
+    } catch (err) {
+        console.error("خطأ في جلب الرسائل", err);
+    } finally {
+        messagesLoading.value = false;
+    }
+}
+
+async function markMessageRead(m) {
+    try {
+        await axios.patch(`/api/v1/admin/messages/${m.id}/read`);
+        m.is_read = true;
+    } catch {
+        alert("حصل خطأ");
+    }
+}
+
+async function deleteMessage(id) {
+    if (!confirm("حذف الرسالة دي؟")) return;
+    try {
+        await axios.delete(`/api/v1/admin/messages/${id}`);
+        messages.value = messages.value.filter((m) => m.id !== id);
+    } catch {
+        alert("حصل خطأ في الحذف");
+    }
+}
+
+// ══════════════════════════════════════════════
 // INITIAL LOAD
 // ══════════════════════════════════════════════
 onMounted(() => {
     fetchBookings();
     fetchCourses();
+    fetchMessages();
 });
 </script>
